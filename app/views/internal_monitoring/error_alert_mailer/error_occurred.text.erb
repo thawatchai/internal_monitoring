@@ -1,0 +1,28 @@
+[<%= @app_name %>] Production Error Alert
+====================================
+
+Time: <%= @timestamp.iso8601 %>
+Exception: <%= @exception.class %>
+Message: <%= @exception.message %>
+
+<% if @context[:url].present? -%>
+Request URL: <%= @context[:url] %>
+<% end -%>
+<% if @context[:controller].present? -%>
+Controller: <%= @context[:controller] %>#<%= @context[:action] %>
+<% end -%>
+<% if @context[:params].present? -%>
+Parameters: <%= @context[:params].inspect %>
+<% end -%>
+<% if @context[:user_id].present? -%>
+User ID: <%= @context[:user_id] %>
+<% end -%>
+
+Backtrace (first 15 lines):
+<% if @exception.backtrace.present? -%>
+<% @exception.backtrace.first(15).each do |line| -%>
+  <%= line %>
+<% end -%>
+<% else -%>
+  (no backtrace available)
+<% end -%>
