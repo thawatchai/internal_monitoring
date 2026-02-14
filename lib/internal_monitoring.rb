@@ -4,11 +4,12 @@ require 'internal_monitoring/engine'
 
 module InternalMonitoring
   class Configuration
-    attr_accessor :app_name, :env_prefix
+    attr_accessor :app_name, :env_prefix, :from_email
 
     def initialize
       @app_name = 'App'
       @env_prefix = 'APP'
+      @from_email = nil
     end
   end
 

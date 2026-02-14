@@ -12,7 +12,10 @@ module InternalMonitoring
       controller_action = [@context[:controller], @context[:action]].compact.join('#')
       label = controller_action.presence || 'Background'
 
+      sender = InternalMonitoring.configuration.from_email || "noreply@#{@app_name.downcase}.org"
+
       mail(
+        from: sender,
         to: recipient.presence || [],
         subject: "[#{@app_name}] ERROR: #{@error[:class_name]} in #{label}"
       )
