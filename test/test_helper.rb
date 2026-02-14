@@ -10,3 +10,8 @@ InternalMonitoring.configure do |config|
   config.app_name = 'TestApp'
   config.env_prefix = 'TEST'
 end
+
+# Draw engine routes into the dummy app
+Rails.application.routes.draw do
+  InternalMonitoring.draw_routes(self)
+end

@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
-Rails.application.routes.draw do
-  # Engine routes are auto-mounted via initializer
+Dummy::Application.routes.draw do
+  InternalMonitoring.draw_routes(self)
 end

@@ -2,14 +2,19 @@
 
 module InternalMonitoring
   class Engine < ::Rails::Engine
-    # Draw the engine's routes directly into the host app
-    initializer 'internal_monitoring.append_routes' do |app|
-      app.routes.append do
-        scope defaults: { format: :json } do
-          namespace :internal do
-            resources :errors, only: [:index]
-          end
-        end
+  end
+
+  # Call this from your routes file to draw the engine's routes.
+  # Must be placed before any catch-all route.
+  #
+  #   # config/routes/misc.rb
+  #   InternalMonitoring.draw_routes(self)
+  #   match '*anything' => 'web/home#not_found', ...
+  #
+  def self.draw_routes(router)
+    router.scope defaults: { format: :json } do
+      router.namespace :internal do
+        router.resources :errors, only: [:index]
       end
     end
   end

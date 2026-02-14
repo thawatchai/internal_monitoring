@@ -17,20 +17,20 @@ module Internal
     # -- Authentication ---------------------------------------------------
 
     test 'returns 401 without authorization header' do
-      get internal_errors_path(format: :json)
+      get '/internal/errors.json'
       assert_response :unauthorized
       assert_equal 'Unauthorized', response.parsed_body['error']
     end
 
     test 'returns 401 with wrong api key' do
-      get internal_errors_path(format: :json),
+      get '/internal/errors.json',
           headers: { 'Authorization' => 'Bearer wrong-key' }
       assert_response :unauthorized
     end
 
     test 'authenticates via Bearer token header' do
       with_log_file('') do
-        get internal_errors_path(format: :json),
+        get '/internal/errors.json',
             headers: auth_headers
         assert_response :success
       end
@@ -38,7 +38,7 @@ module Internal
 
     test 'returns 503 when api key not configured' do
       ENV.delete('TEST_INTERNAL_API_KEY')
-      get internal_errors_path(format: :json),
+      get '/internal/errors.json',
           headers: { 'Authorization' => 'Bearer anything' }
       assert_response :service_unavailable
     end
@@ -47,7 +47,7 @@ module Internal
 
     test 'returns empty entries when log file is empty' do
       with_log_file('') do
-        get internal_errors_path(format: :json), headers: auth_headers
+        get '/internal/errors.json', headers: auth_headers
         assert_response :success
         body = response.parsed_body
         assert_equal 0, body['count']
@@ -64,7 +64,7 @@ module Internal
       LOG
 
       with_log_file(log_content) do
-        get internal_errors_path(format: :json),
+        get '/internal/errors.json',
             headers: auth_headers,
             params: { hours: 24 }
         assert_response :success
@@ -80,7 +80,7 @@ module Internal
       log_content = "#{log_line(ts, 99, 'FATAL', 'Server crashed')}\n"
 
       with_log_file(log_content) do
-        get internal_errors_path(format: :json),
+        get '/internal/errors.json',
             headers: auth_headers,
             params: { severity: 'FATAL' }
         assert_response :success
@@ -99,7 +99,7 @@ module Internal
       LOG
 
       with_log_file(log_content) do
-        get internal_errors_path(format: :json), headers: auth_headers
+        get '/internal/errors.json', headers: auth_headers
         assert_response :success
         body = response.parsed_body
         entry = body['entries'].first
@@ -115,7 +115,7 @@ module Internal
       LOG
 
       with_log_file(log_content) do
-        get internal_errors_path(format: :json),
+        get '/internal/errors.json',
             headers: auth_headers,
             params: { hours: 2 }
         assert_response :success
@@ -127,7 +127,7 @@ module Internal
 
     test 'clamps hours to max 168' do
       with_log_file('') do
-        get internal_errors_path(format: :json),
+        get '/internal/errors.json',
             headers: auth_headers,
             params: { hours: 999 }
         assert_response :success
@@ -142,7 +142,7 @@ module Internal
       LOG
 
       with_log_file(log_content) do
-        get internal_errors_path(format: :json), headers: auth_headers
+        get '/internal/errors.json', headers: auth_headers
         assert_response :success
         entries = response.parsed_body['entries']
         assert_equal 2, entries.size
@@ -158,7 +158,7 @@ module Internal
 
       with_rotated_log_file(rotated_name, log_content) do
         with_log_file('') do
-          get internal_errors_path(format: :json), headers: auth_headers
+          get '/internal/errors.json', headers: auth_headers
           assert_response :success
           body = response.parsed_body
           assert_equal 1, body['count']
@@ -171,7 +171,7 @@ module Internal
       log_content = "#{log_line(1.hour.ago, 42, 'ERROR', 'Test error')}\n"
 
       with_log_file(log_content) do
-        get internal_errors_path(format: :json), headers: auth_headers
+        get '/internal/errors.json', headers: auth_headers
         assert_response :success
         body = response.parsed_body
         assert body.key?('count')
