@@ -2,8 +2,8 @@
 ====================================
 
 Time: <%= @timestamp.iso8601 %>
-Exception: <%= @exception.class %>
-Message: <%= @exception.message %>
+Exception: <%= @error[:class_name] %>
+Message: <%= @error[:message] %>
 
 <% if @context[:url].present? -%>
 Request URL: <%= @context[:url] %>
@@ -19,8 +19,8 @@ User ID: <%= @context[:user_id] %>
 <% end -%>
 
 Backtrace (first 15 lines):
-<% if @exception.backtrace.present? -%>
-<% @exception.backtrace.first(15).each do |line| -%>
+<% if @error[:backtrace].present? -%>
+<% @error[:backtrace].each do |line| -%>
   <%= line %>
 <% end -%>
 <% else -%>

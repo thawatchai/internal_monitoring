@@ -2,8 +2,8 @@
 
 module InternalMonitoring
   class ErrorAlertMailer < ActionMailer::Base
-    def error_occurred(exception, request_context = {})
-      @exception = exception
+    def error_occurred(error_data, request_context = {})
+      @error = error_data
       @context = request_context
       @timestamp = Time.current
       @app_name = InternalMonitoring.configuration.app_name
@@ -14,7 +14,7 @@ module InternalMonitoring
 
       mail(
         to: recipient.presence || [],
-        subject: "[#{@app_name}] ERROR: #{exception.class} in #{label}"
+        subject: "[#{@app_name}] ERROR: #{@error[:class_name]} in #{label}"
       )
     end
   end

@@ -43,7 +43,12 @@ module InternalMonitoring
 
       Rails.cache.write(cache_key, true, expires_in: 1.hour)
 
-      InternalMonitoring::ErrorAlertMailer.error_occurred(exception, context).deliver_later
+      error_data = {
+        class_name: exception.class.name,
+        message: exception.message,
+        backtrace: exception.backtrace&.first(15) || []
+      }
+      InternalMonitoring::ErrorAlertMailer.error_occurred(error_data, context).deliver_later
     rescue StandardError => e
       Rails.logger.error("InternalMonitoring::ErrorAlertMailer failed: #{e.message}")
     end
