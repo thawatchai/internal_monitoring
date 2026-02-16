@@ -106,16 +106,19 @@ module Internal
     def log_files_for(since)
       log_dir = Rails.root.join('log')
       today = Time.current.to_date
-      files = [log_dir.join('production.log')]
+      files = [log_dir.join('production_errors.log')]
 
       # Rotated files are named by rotation date (day after the logs).
-      # production.log-20260214 contains Feb 13's logs (rotated at midnight Feb 14).
-      # So for logs from date X, we need production.log-{X+1}.
+      # production_errors.log-20260214 contains Feb 13's errors (rotated at midnight Feb 14).
+      # So for errors from date X, we need production_errors.log-{X+1}.
       (since.to_date..today).each do |date|
         rotation_date = date + 1.day
-        rotated = log_dir.join("production.log-#{rotation_date.strftime('%Y%m%d')}")
+        rotated = log_dir.join("production_errors.log-#{rotation_date.strftime('%Y%m%d')}")
         files << rotated
       end
+
+      # Fall back to production.log if no error-only log files exist yet
+      files = [log_dir.join('production.log')] if files.none? { |f| File.exist?(f) }
 
       files
     end
