@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'zlib'
+
 module Internal
   class ErrorsController < ActionController::Base
     skip_before_action :authenticate_user!, raise: false
@@ -52,7 +54,7 @@ module Internal
 
     def parse_log_entries(since, severities)
       entries = []
-      log_files_for(since).each do |path|
+      log_files_for.each do |path|
         next unless File.exist?(path)
 
         collect_entries_from(path, since, severities, entries)
@@ -63,7 +65,7 @@ module Internal
     def collect_entries_from(path, since, severities, entries)
       current_entry = nil
 
-      File.foreach(path) do |line|
+      each_log_line(path) do |line|
         match = parse_log_line(line)
         if match
           flush_entry(current_entry, since, severities, entries)
@@ -74,6 +76,15 @@ module Internal
       end
 
       flush_entry(current_entry, since, severities, entries)
+    end
+
+    # logrotate compresses everything but the live file.
+    def each_log_line(path, &block)
+      if path.to_s.end_with?('.gz')
+        Zlib::GzipReader.open(path) { |gz| gz.each_line(&block) }
+      else
+        File.foreach(path, &block)
+      end
     end
 
     def build_entry(match)
@@ -101,26 +112,25 @@ module Internal
       entries.sort_by { |e| e[:timestamp] }.reverse
     end
 
-    # Returns log file paths to read.
-    # Handles daily rotation: today's file + yesterday's if time range spans midnight.
-    def log_files_for(since)
+    # Every rotation of the error log, however it was produced.
+    #
+    # This used to reconstruct rotation dates and look for
+    # `production_errors.log-YYYYMMDD`. Nothing writes that name: logrotate is
+    # configured with `compress`, so it produces `-YYYYMMDD.gz`, and Rails'
+    # Logger shift_age produced `.YYYYMMDD`. The guess matched neither, and
+    # parse_log_entries skips a missing path silently, so every query wider than
+    # the current file quietly returned only today's errors while reporting the
+    # window the caller asked for.
+    #
+    # Globbing removes the guess. Entries are filtered by timestamp in
+    # flush_entry regardless, so matching broadly costs a little reading and
+    # cannot miss a file.
+    def log_files_for
       log_dir = Rails.root.join('log')
-      today = Time.current.to_date
-      files = [log_dir.join('production_errors.log')]
+      files = Dir[File.join(log_dir, 'production_errors.log*')].sort
 
-      # Rotated files are named by rotation date (day after the logs).
-      # production_errors.log-20260214 contains Feb 13's errors (rotated at midnight Feb 14).
-      # So for errors from date X, we need production_errors.log-{X+1}.
-      (since.to_date..today).each do |date|
-        rotation_date = date + 1.day
-        rotated = log_dir.join("production_errors.log-#{rotation_date.strftime('%Y%m%d')}")
-        files << rotated
-      end
-
-      # Fall back to production.log if no error-only log files exist yet
-      files = [log_dir.join('production.log')] if files.none? { |f| File.exist?(f) }
-
-      files
+      # Only for an app that has not written an error log yet.
+      files.presence || [log_dir.join('production.log').to_s]
     end
 
     def parse_log_line(line)

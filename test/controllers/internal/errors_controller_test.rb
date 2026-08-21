@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'test_helper'
+require 'zlib'
 
 module Internal
   class ErrorsControllerTest < ActionDispatch::IntegrationTest
@@ -151,18 +152,35 @@ module Internal
       end
     end
 
-    test 'reads rotated log files with hyphen naming' do
+    test 'reads rotated log files' do
       tomorrow = (Time.current.to_date + 1.day).strftime('%Y%m%d')
-      rotated_name = "production.log-#{tomorrow}"
       log_content = "#{log_line(1.hour.ago, 1, 'ERROR', 'Rotated file error')}\n"
 
-      with_rotated_log_file(rotated_name, log_content) do
+      with_rotated_log_file("production_errors.log-#{tomorrow}", log_content) do
         with_log_file('') do
           get '/internal/errors.json', headers: auth_headers
           assert_response :success
           body = response.parsed_body
           assert_equal 1, body['count']
           assert_includes body['entries'].first['message'], 'Rotated file error'
+        end
+      end
+    end
+
+    # logrotate is configured with `compress`, so every rotation but the live
+    # file arrives gzipped. Reading only the plain name meant any window wider
+    # than the current file silently returned just today's errors.
+    test 'reads gzipped rotated log files' do
+      tomorrow = (Time.current.to_date + 1.day).strftime('%Y%m%d')
+      log_content = "#{log_line(1.hour.ago, 1, 'ERROR', 'Gzipped rotated error')}\n"
+
+      with_gzipped_log_file("production_errors.log-#{tomorrow}.gz", log_content) do
+        with_log_file('') do
+          get '/internal/errors.json', headers: auth_headers
+          assert_response :success
+          body = response.parsed_body
+          assert_equal 1, body['count']
+          assert_includes body['entries'].first['message'], 'Gzipped rotated error'
         end
       end
     end
@@ -201,7 +219,7 @@ module Internal
     end
 
     def with_log_file(content)
-      log_path = Rails.root.join('log/production.log')
+      log_path = Rails.root.join('log/production_errors.log')
       FileUtils.mkdir_p(File.dirname(log_path))
       original = File.exist?(log_path) ? File.read(log_path) : nil
 
@@ -213,6 +231,15 @@ module Internal
       else
         FileUtils.rm_f(log_path)
       end
+    end
+
+    def with_gzipped_log_file(filename, content)
+      log_path = Rails.root.join("log/#{filename}")
+      FileUtils.mkdir_p(File.dirname(log_path))
+      Zlib::GzipWriter.open(log_path) { |gz| gz.write(content) }
+      yield
+    ensure
+      FileUtils.rm_f(log_path)
     end
 
     def with_rotated_log_file(filename, content)
